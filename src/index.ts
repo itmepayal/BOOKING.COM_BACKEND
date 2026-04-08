@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
@@ -6,6 +6,7 @@ import { connectDB } from "./db/connect";
 import { errorHandler } from "./middlewares/error.middleware";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { usersRoutes } from "./modules/user/user.routes";
+import { hotelRouters } from "./modules/hotel/hotel.routes";
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use(cookieParser());
 // ================= ROUTES =================
 app.use("/api/auth", authRoutes);
 app.use("/api/users", usersRoutes);
+app.use("/api/hotels", hotelRouters);
 
 // ================= ERROR HANDLER =================
 app.use(errorHandler);

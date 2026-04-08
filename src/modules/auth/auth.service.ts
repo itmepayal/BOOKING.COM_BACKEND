@@ -5,7 +5,7 @@ import { StatusCodes } from "http-status-codes";
 import TokenBlacklist from "../../models/token";
 
 export const registerUser = async (data: any) => {
-  const { firstname, lastname, email, password } = data;
+  const { firstname, lastname, email, password, role } = data;
 
   if (!firstname || !email || !password) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "All fields are required");
@@ -22,6 +22,7 @@ export const registerUser = async (data: any) => {
     lastname,
     email,
     password,
+    role,
   });
 
   return user.toJSON();

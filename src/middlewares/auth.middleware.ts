@@ -19,6 +19,7 @@ export const requireAuth = async (
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET!);
 
     const user = await User.findById(decoded.userId);
+
     if (!user) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, "User not found");
     }

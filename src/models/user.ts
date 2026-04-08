@@ -1,13 +1,15 @@
-import mongoose, { Document, Model } from "mongoose";
+import mongoose, { Types, Document, Model } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 // ================= INTERFACE =================
 export interface IUser extends Document {
+  _id: Types.ObjectId;
   email: string;
   password: string;
   firstname: string;
   lastname: string;
+  role: "user" | "owner" | "admin";
 
   comparePassword(password: string): Promise<boolean>;
   generateAccessToken(): string;
@@ -39,6 +41,11 @@ const userSchema = new mongoose.Schema<IUser>(
       required: true,
       trim: true,
     },
+    role: {
+      type: String,
+      enum: ["user", "owner", "admin"],
+      default: "user",
+    },
   },
   { timestamps: true, versionKey: false },
 );
@@ -67,6 +74,7 @@ userSchema.methods.generateAccessToken = function (): string {
     {
       userId: this._id,
       email: this.email,
+      role: this.role,
     },
     process.env.JWT_SECRET,
     {
