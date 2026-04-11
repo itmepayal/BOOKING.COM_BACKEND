@@ -7,6 +7,7 @@ import { errorHandler } from "./middlewares/error.middleware";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { usersRoutes } from "./modules/user/user.routes";
 import { hotelRouters } from "./modules/hotel/hotel.routes";
+import path from "node:path";
 
 const app = express();
 

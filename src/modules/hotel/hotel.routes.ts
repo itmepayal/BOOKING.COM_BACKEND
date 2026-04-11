@@ -2,7 +2,11 @@ import express from "express";
 import { upload } from "../../middlewares/multer.middleware";
 import { requireAuth } from "../../middlewares/auth.middleware";
 import { authorize } from "../../middlewares/role.middleware";
-import { createHotelController } from "./hotel.controller";
+import {
+  createHotelController,
+  deleteHotelController,
+  getAllHotelsController,
+} from "./hotel.controller";
 
 export const hotelRouters = express.Router();
 
@@ -13,3 +17,7 @@ hotelRouters.post(
   upload.array("images", 20),
   createHotelController,
 );
+
+hotelRouters.get("/", requireAuth, getAllHotelsController);
+
+hotelRouters.delete("/:id", requireAuth, deleteHotelController);
