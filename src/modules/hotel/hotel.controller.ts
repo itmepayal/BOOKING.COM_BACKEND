@@ -17,6 +17,8 @@ import { createHotelSchema, updateHotelSchema } from "../../validations/hotel";
 // ================= CREATE HOTEL =================
 export const createHotelController = asyncHandler(
   async (req: Request, res: Response) => {
+    console.log(req.body);
+
     if (!req.user?._id) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, "Unauthorized");
     }
@@ -27,7 +29,9 @@ export const createHotelController = asyncHandler(
 
     if (req.body.location) {
       try {
+        console.log("Me Kam Kar Raha Hu");
         req.body.location = JSON.parse(req.body.location);
+        console.log(req.body.location);
       } catch {
         throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid location format");
       }

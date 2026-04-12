@@ -19,5 +19,4 @@ hotelRouters.post(
 );
 
 hotelRouters.get("/", requireAuth, getAllHotelsController);
-
 hotelRouters.delete("/:id", requireAuth, deleteHotelController);
