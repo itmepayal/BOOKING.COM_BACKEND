@@ -9,6 +9,7 @@ import {
   getHotelByIdController,
   updateHotelController,
   getAllHotelsAdminController,
+  deleteMultipleHotelsController,
 } from "./hotel.controller";
 
 export const hotelRouters = express.Router();
@@ -28,6 +29,13 @@ hotelRouters.post(
   authorize("owner"),
   upload.array("images", 20),
   createHotelController,
+);
+
+hotelRouters.delete(
+  "/",
+  requireAuth,
+  authorize("owner"),
+  deleteMultipleHotelsController,
 );
 
 hotelRouters.patch(

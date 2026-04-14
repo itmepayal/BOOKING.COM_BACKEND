@@ -11,6 +11,20 @@ import {
   UpdateHotelServiceInput,
 } from "../../validations/hotel";
 
+import {
+  HOTEL_TYPES,
+  FACILITIES,
+  AMENITIES,
+  TAGS,
+} from "../../constants/hotel";
+
+// ================= HELPERS =================
+const normalizeArray = (val: any) =>
+  Array.isArray(val) ? val : val ? [val] : [];
+
+const validateEnumArray = (arr: string[], validList: readonly string[]) =>
+  arr.every((item) => validList.includes(item));
+
 // ================= CREATE HOTEL =================
 export const createHotelService = async (data: CreateHotelServiceInput) => {
   const session = await mongoose.startSession();
@@ -18,6 +32,26 @@ export const createHotelService = async (data: CreateHotelServiceInput) => {
 
   try {
     session.startTransaction();
+
+    if (!HOTEL_TYPES.includes(data.type)) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid hotel type");
+    }
+
+    const facilities = normalizeArray(data.facilities);
+    const amenities = normalizeArray(data.amenities);
+    const tags = normalizeArray(data.tags);
+
+    if (!validateEnumArray(facilities, FACILITIES)) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid facilities");
+    }
+
+    if (!validateEnumArray(amenities, AMENITIES)) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid amenities");
+    }
+
+    if (!validateEnumArray(tags, TAGS)) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid tags");
+    }
 
     if (data.files?.length) {
       uploadedImages = await Promise.all(
@@ -33,7 +67,6 @@ export const createHotelService = async (data: CreateHotelServiceInput) => {
       country: data.country.trim(),
 
       location: data.location,
-
       description: data.description,
 
       type: data.type,
@@ -41,9 +74,9 @@ export const createHotelService = async (data: CreateHotelServiceInput) => {
       adultsCount: data.adultsCount,
       childrenCount: data.childrenCount ?? 0,
 
-      amenities: data.amenities ?? [],
-      facilities: data.facilities ?? [],
-      tags: data.tags ?? [],
+      amenities,
+      facilities,
+      tags,
 
       pricePerNight: data.pricePerNight ?? 0,
       discount: data.discount ?? 0,
@@ -54,13 +87,6 @@ export const createHotelService = async (data: CreateHotelServiceInput) => {
         url: img.secure_url,
         public_id: img.public_id,
       })),
-
-      thumbnail: uploadedImages[0]
-        ? {
-            url: uploadedImages[0].secure_url,
-            public_id: uploadedImages[0].public_id,
-          }
-        : undefined,
 
       isAvailable: data.isAvailable ?? true,
     };
@@ -87,7 +113,7 @@ export const createHotelService = async (data: CreateHotelServiceInput) => {
   }
 };
 
-// ================= GET HOTEL BY ID SERVICES =================
+// ================= GET HOTEL BY ID =================
 export const getHotelByIdService = async (hotelId: string) => {
   if (!Types.ObjectId.isValid(hotelId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid hotel ID");
@@ -105,7 +131,7 @@ export const getHotelByIdService = async (hotelId: string) => {
   return hotel;
 };
 
-// ================= GET ALL HOTELS SERVICES =================
+// ================= GET ALL HOTELS =================
 export const getAllHotelsService = async (query: any) => {
   let {
     page = 1,
@@ -116,8 +142,13 @@ export const getAllHotelsService = async (query: any) => {
     minPrice,
     maxPrice,
     starRating,
+    facilities,
+    amenities,
+    tags,
     search,
     sort = "-createdAt",
+    lat,
+    lng,
   } = query;
 
   page = Number(page) || 1;
@@ -134,7 +165,7 @@ export const getAllHotelsService = async (query: any) => {
 
   if (city) filter.city = { $regex: city, $options: "i" };
   if (country) filter.country = { $regex: country, $options: "i" };
-  if (type) filter.type = type;
+  if (type && HOTEL_TYPES.includes(type)) filter.type = type;
 
   if (starRating) {
     filter.starRating = { $gte: Number(starRating) };
@@ -144,6 +175,35 @@ export const getAllHotelsService = async (query: any) => {
     filter.pricePerNight = {};
     if (minPrice) filter.pricePerNight.$gte = Number(minPrice);
     if (maxPrice) filter.pricePerNight.$lte = Number(maxPrice);
+  }
+
+  if (facilities) {
+    filter.facilities = { $all: facilities.split(",") };
+  }
+
+  if (amenities) {
+    filter.amenities = { $all: amenities.split(",") };
+  }
+
+  if (tags) {
+    filter.tags = { $in: tags.split(",") };
+  }
+
+  if (lat && lng) {
+    filter.location = {
+      $near: {
+        $geometry: {
+          type: "Point",
+          coordinates: [Number(lng), Number(lat)],
+        },
+        $maxDistance: 5000,
+      },
+    };
+  }
+
+  const allowedSort = ["pricePerNight", "starRating", "createdAt"];
+  if (!allowedSort.includes(sort.replace("-", ""))) {
+    sort = "-createdAt";
   }
 
   const skip = (page - 1) * limit;
@@ -170,34 +230,118 @@ export const getAllHotelsService = async (query: any) => {
   };
 };
 
-// ================= DELETE HOTEL SERVICES =================
-export const deleteHotelService = async (hotelId: string) => {
-  if (!Types.ObjectId.isValid(hotelId)) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid hotel ID");
+// ================= GET ALL ADMIN HOTELS =================
+export const getAllHotelsAdminService = async (query: any) => {
+  let {
+    page = 1,
+    limit = 10,
+    city,
+    country,
+    type,
+    minPrice,
+    maxPrice,
+    starRating,
+    facilities,
+    amenities,
+    tags,
+    search,
+    sort = "-createdAt",
+    lat,
+    lng,
+  } = query;
+
+  page = Number(page) || 1;
+  limit = Number(limit) || 10;
+
+  const filter: any = {
+    isDeleted: false,
+  };
+
+  if (search) {
+    filter.$text = { $search: search };
   }
 
-  const hotel = await Hotel.findByIdAndUpdate(
-    hotelId,
-    { isDeleted: true },
-    { new: true },
-  );
+  if (city) filter.city = { $regex: city, $options: "i" };
+  if (country) filter.country = { $regex: country, $options: "i" };
+  if (type && HOTEL_TYPES.includes(type)) filter.type = type;
 
-  if (!hotel) {
-    throw new ApiError(StatusCodes.NOT_FOUND, "Hotel not found");
+  if (starRating) {
+    filter.starRating = { $gte: Number(starRating) };
   }
 
-  return hotel;
+  if (minPrice || maxPrice) {
+    filter.pricePerNight = {};
+    if (minPrice) filter.pricePerNight.$gte = Number(minPrice);
+    if (maxPrice) filter.pricePerNight.$lte = Number(maxPrice);
+  }
+
+  if (facilities) {
+    filter.facilities = { $all: facilities.split(",") };
+  }
+
+  if (amenities) {
+    filter.amenities = { $all: amenities.split(",") };
+  }
+
+  if (tags) {
+    filter.tags = { $in: tags.split(",") };
+  }
+
+  if (lat && lng) {
+    filter.location = {
+      $near: {
+        $geometry: {
+          type: "Point",
+          coordinates: [Number(lng), Number(lat)],
+        },
+        $maxDistance: 5000,
+      },
+    };
+  }
+
+  const allowedSort = ["pricePerNight", "starRating", "createdAt"];
+  if (!allowedSort.includes(sort.replace("-", ""))) {
+    sort = "-createdAt";
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [hotels, total] = await Promise.all([
+    Hotel.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .populate("userId", "name email")
+      .lean(),
+
+    Hotel.countDocuments(filter),
+  ]);
+
+  return {
+    hotels,
+    pagination: {
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit),
+    },
+  };
 };
 
-// ================= UPDATE HOTEL SERVICES =================
+// ================= UPDATE HOTEL =================
 export const updateHotelService = async (data: UpdateHotelServiceInput) => {
   const { hotelId, files, removeImageIds, ...updateData } = data;
 
-  console.log(removeImageIds);
-
   if (!Types.ObjectId.isValid(hotelId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid hotel ID");
   }
+
+  type UpdateHotelFields = Omit<
+    UpdateHotelServiceInput,
+    "hotelId" | "files" | "removeImageIds"
+  >;
+
+  const updateFields = updateData as UpdateHotelFields;
 
   const session = await mongoose.startSession();
   let uploadedImages: any[] = [];
@@ -234,20 +378,68 @@ export const updateHotelService = async (data: UpdateHotelServiceInput) => {
       hotel.images = [...(hotel.images || []), ...newImages];
     }
 
-    Object.entries(updateData).forEach(([key, value]) => {
+    if (updateFields.type && !HOTEL_TYPES.includes(updateFields.type)) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid hotel type");
+    }
+
+    if (updateFields.facilities !== undefined) {
+      const facilities = normalizeArray(updateFields.facilities);
+
+      if (!validateEnumArray(facilities, FACILITIES)) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid facilities");
+      }
+
+      hotel.facilities = facilities;
+    }
+
+    if (updateFields.amenities !== undefined) {
+      const amenities = normalizeArray(updateFields.amenities);
+
+      if (!validateEnumArray(amenities, AMENITIES)) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid amenities");
+      }
+
+      hotel.amenities = amenities;
+    }
+
+    if (updateFields.tags !== undefined) {
+      const tags = normalizeArray(updateFields.tags);
+
+      if (!validateEnumArray(tags, TAGS)) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid tags");
+      }
+
+      hotel.tags = tags;
+    }
+
+    const allowedFields: (keyof UpdateHotelFields)[] = [
+      "name",
+      "city",
+      "country",
+      "description",
+      "type",
+      "adultsCount",
+      "childrenCount",
+      "pricePerNight",
+      "discount",
+      "starRating",
+      "isAvailable",
+      "location",
+    ];
+
+    allowedFields.forEach((field) => {
+      const value = updateFields[field];
+
       if (value !== undefined) {
-        (hotel as any)[key] = value;
+        (hotel as any)[field] = value;
       }
     });
 
-    if (hotel.images?.length) {
-      hotel.thumbnail = hotel.images[0];
-    }
+    hotel.thumbnail = hotel.images?.[0] || null;
 
     await hotel.save({ session });
 
     await session.commitTransaction();
-
     return hotel;
   } catch (error: any) {
     await session.abortTransaction();
@@ -267,66 +459,51 @@ export const updateHotelService = async (data: UpdateHotelServiceInput) => {
   }
 };
 
-// ================= GET ALL HOTELS SERVICES =================
-export const getAllHotelsAdminService = async (query: any) => {
-  let {
-    page = 1,
-    limit = 10,
-    city,
-    country,
-    type,
-    minPrice,
-    maxPrice,
-    starRating,
-    search,
-    sort = "-createdAt",
-  } = query;
-
-  page = Number(page) || 1;
-  limit = Number(limit) || 10;
-
-  const filter: any = {
-    isDeleted: false,
-  };
-
-  if (search) {
-    filter.$text = { $search: search };
+// ================= DELETE HOTEL =================
+export const deleteHotelService = async (hotelId: string) => {
+  if (!Types.ObjectId.isValid(hotelId)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid hotel ID");
   }
 
-  if (city) filter.city = { $regex: city, $options: "i" };
-  if (country) filter.country = { $regex: country, $options: "i" };
-  if (type) filter.type = type;
+  const hotel = await Hotel.findByIdAndUpdate(
+    hotelId,
+    { isDeleted: true },
+    { new: true },
+  );
 
-  if (starRating) {
-    filter.starRating = { $gte: Number(starRating) };
+  if (!hotel) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "Hotel not found");
   }
 
-  if (minPrice || maxPrice) {
-    filter.pricePerNight = {};
-    if (minPrice) filter.pricePerNight.$gte = Number(minPrice);
-    if (maxPrice) filter.pricePerNight.$lte = Number(maxPrice);
+  return hotel;
+};
+
+// ================= DELETE ALL HOTEL =================
+export const deleteMultipleHotelsService = async (hotelIds: string[]) => {
+  if (!hotelIds || hotelIds.length === 0) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "No hotel IDs provided");
   }
 
-  const skip = (page - 1) * limit;
+  const invalidIds = hotelIds.filter((id) => !Types.ObjectId.isValid(id));
 
-  const [hotels, total] = await Promise.all([
-    Hotel.find(filter)
-      .sort(sort)
-      .skip(skip)
-      .limit(limit)
-      .populate("userId", "name email")
-      .lean(),
+  if (invalidIds.length > 0) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      `Invalid hotel IDs: ${invalidIds.join(", ")}`,
+    );
+  }
 
-    Hotel.countDocuments(filter),
-  ]);
+  const result = await Hotel.updateMany(
+    { _id: { $in: hotelIds } },
+    { $set: { isDeleted: true } },
+  );
+
+  if (result.matchedCount === 0) {
+    throw new ApiError(StatusCodes.NOT_FOUND, "No hotels found");
+  }
 
   return {
-    hotels,
-    pagination: {
-      total,
-      page,
-      limit,
-      pages: Math.ceil(total / limit),
-    },
+    matched: result.matchedCount,
+    modified: result.modifiedCount,
   };
 };

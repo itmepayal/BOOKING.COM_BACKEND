@@ -1,6 +1,13 @@
 import { model, Schema, Types, Document } from "mongoose";
 import { IUser } from "./user";
 import { v4 as uuidv4 } from "uuid";
+import { HOTEL_TYPES, FACILITIES, AMENITIES, TAGS } from "../constants/hotel";
+
+// ================= TYPES =================
+type HotelType = (typeof HOTEL_TYPES)[number];
+type FacilityType = (typeof FACILITIES)[number];
+type AmenityType = (typeof AMENITIES)[number];
+type TagType = (typeof TAGS)[number];
 
 // ================= SUB INTERFACES =================
 interface IImage {
@@ -35,17 +42,17 @@ export interface IHotel extends Document {
   location: ILocation;
 
   description?: string;
-  type: "hotel" | "resort" | "apartment" | "hostel";
+  type: HotelType;
 
   adultsCount: number;
   childrenCount?: number;
 
-  facilities?: string[];
-  amenities?: string[];
-  tags?: string[];
+  facilities?: FacilityType[];
+  amenities?: AmenityType[];
+  tags?: TagType[];
 
   images?: IImage[];
-  thumbnail?: IImage;
+  thumbnail?: IImage | null;
 
   pricePerNight?: number;
   discount?: number;
@@ -104,6 +111,10 @@ const hotelSchema = new Schema<IHotel>(
       coordinates: {
         type: [Number],
         required: true,
+        validate: {
+          validator: (val: number[]) => val.length === 2,
+          message: "Coordinates must be [lng, lat]",
+        },
       },
     },
 
@@ -114,7 +125,7 @@ const hotelSchema = new Schema<IHotel>(
 
     type: {
       type: String,
-      enum: ["hotel", "resort", "apartment", "hostel"],
+      enum: HOTEL_TYPES,
       required: true,
     },
 
@@ -130,35 +141,42 @@ const hotelSchema = new Schema<IHotel>(
       min: 0,
     },
 
-    facilities: [
-      {
-        type: String,
-      },
-    ],
+    facilities: {
+      type: [String],
+      enum: FACILITIES,
+      default: [],
+      set: (val: any) => (Array.isArray(val) ? val : [val]),
+    },
 
-    amenities: [
-      {
-        type: String,
-      },
-    ],
+    amenities: {
+      type: [String],
+      enum: AMENITIES,
+      default: [],
+      set: (val: any) => (Array.isArray(val) ? val : [val]),
+    },
 
-    tags: [
-      {
-        type: String,
-        enum: ["budget", "luxury", "family", "couple", "business"],
-      },
-    ],
+    tags: {
+      type: [String],
+      enum: TAGS,
+      default: [],
+    },
 
-    images: [
-      {
-        url: { type: String, required: true },
-        public_id: { type: String, required: true },
-      },
-    ],
+    images: {
+      type: [
+        {
+          url: { type: String, required: true },
+          public_id: { type: String, required: true },
+        },
+      ],
+      default: [],
+    },
 
     thumbnail: {
-      url: String,
-      public_id: String,
+      type: {
+        url: { type: String },
+        public_id: { type: String },
+      },
+      default: null,
     },
 
     pricePerNight: {
@@ -227,7 +245,7 @@ hotelSchema.index({
 
 // ================= HOOKS =================
 hotelSchema.pre("save", function (next) {
-  if (this.isModified("name")) {
+  if (this.isModified("name") && !this.slug) {
     const baseSlug = this.name
       .toLowerCase()
       .trim()
@@ -236,6 +254,7 @@ hotelSchema.pre("save", function (next) {
     const uniqueId = uuidv4().split("-")[0];
     this.slug = `${baseSlug}-${uniqueId}`;
   }
+  this.thumbnail = this.images?.[0] || null;
 });
 
 // ================= MODEL =================

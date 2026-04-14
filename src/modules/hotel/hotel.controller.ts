@@ -11,6 +11,7 @@ import {
   getHotelByIdService,
   updateHotelService,
   deleteHotelService,
+  deleteMultipleHotelsService,
 } from "./hotel.service";
 
 import { createHotelSchema, updateHotelSchema } from "../../validations/hotel";
@@ -99,27 +100,12 @@ export const getAllHotelsAdminController = asyncHandler(
   },
 );
 
-// ================= DELETE HOTEL =================
-export const deleteHotelController = asyncHandler(
-  async (req: Request<{ id: string }>, res: Response) => {
-    const hotel = await deleteHotelService(req.params.id);
-
-    return res
-      .status(StatusCodes.OK)
-      .json(
-        new ApiResponse(StatusCodes.OK, hotel, "Hotel deleted successfully"),
-      );
-  },
-);
-
 // ================= UPDATE HOTEL =================
 export const updateHotelController = asyncHandler(
   async (req: Request<{ id: string }>, res: Response) => {
     if (!req.user?._id) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, "Unauthorized");
     }
-
-    console.log(req.body);
 
     const files = Array.isArray(req.files)
       ? (req.files as Express.Multer.File[])
@@ -140,6 +126,45 @@ export const updateHotelController = asyncHandler(
           StatusCodes.OK,
           updatedHotel,
           "Hotel updated successfully",
+        ),
+      );
+  },
+);
+
+// ================= DELETE HOTEL =================
+export const deleteHotelController = asyncHandler(
+  async (req: Request<{ id: string }>, res: Response) => {
+    const hotel = await deleteHotelService(req.params.id);
+
+    return res
+      .status(StatusCodes.OK)
+      .json(
+        new ApiResponse(StatusCodes.OK, hotel, "Hotel deleted successfully"),
+      );
+  },
+);
+
+// ================= DELETE ALL HOTEL =================
+export const deleteMultipleHotelsController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { hotelIds } = req.body;
+
+    if (!Array.isArray(hotelIds) || hotelIds.length === 0) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "hotelIds must be a non-empty array",
+      );
+    }
+
+    const result = await deleteMultipleHotelsService(hotelIds);
+
+    return res
+      .status(StatusCodes.OK)
+      .json(
+        new ApiResponse(
+          StatusCodes.OK,
+          result,
+          `${result.modified} hotels deleted successfully`,
         ),
       );
   },

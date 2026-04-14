@@ -7,7 +7,7 @@ import { errorHandler } from "./middlewares/error.middleware";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { usersRoutes } from "./modules/user/user.routes";
 import { hotelRouters } from "./modules/hotel/hotel.routes";
-import path from "node:path";
+import { placesRouters } from "./modules/places/places.route";
 
 const app = express();
 
@@ -36,6 +36,7 @@ app.use(cookieParser());
 // ================= ROUTES =================
 app.use("/api/auth", authRoutes);
 app.use("/api/users", usersRoutes);
+app.use("/api/places", placesRouters);
 app.use("/api/hotels", hotelRouters);
 
 // ================= ERROR HANDLER =================
