@@ -7,6 +7,7 @@ import { ApiError } from "../../helper/errors";
 import {
   createHotelService,
   getAllHotelsService,
+  getAllHotelsAdminService,
   getHotelByIdService,
   updateHotelService,
   deleteHotelService,
@@ -85,6 +86,19 @@ export const getAllHotelsController = asyncHandler(
   },
 );
 
+// ================= GET ALL HOTELS (ADMIN) =================
+export const getAllHotelsAdminController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const result = await getAllHotelsAdminService(req.query);
+
+    return res
+      .status(StatusCodes.OK)
+      .json(
+        new ApiResponse(StatusCodes.OK, result, "Hotels fetched successfully"),
+      );
+  },
+);
+
 // ================= DELETE HOTEL =================
 export const deleteHotelController = asyncHandler(
   async (req: Request<{ id: string }>, res: Response) => {
@@ -104,6 +118,8 @@ export const updateHotelController = asyncHandler(
     if (!req.user?._id) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, "Unauthorized");
     }
+
+    console.log(req.body);
 
     const files = Array.isArray(req.files)
       ? (req.files as Express.Multer.File[])

@@ -6,10 +6,22 @@ import {
   createHotelController,
   deleteHotelController,
   getAllHotelsController,
+  getHotelByIdController,
+  updateHotelController,
+  getAllHotelsAdminController,
 } from "./hotel.controller";
 
 export const hotelRouters = express.Router();
 
+/* ================= ADMIN ROUTES ================= */
+hotelRouters.get(
+  "/admin",
+  requireAuth,
+  authorize("owner"),
+  getAllHotelsAdminController,
+);
+
+/* ================= OWNER ROUTES ================= */
 hotelRouters.post(
   "/",
   requireAuth,
@@ -18,6 +30,21 @@ hotelRouters.post(
   createHotelController,
 );
 
-hotelRouters.get("/", requireAuth, getAllHotelsController);
+hotelRouters.patch(
+  "/:id",
+  requireAuth,
+  authorize("owner"),
+  upload.array("images", 20),
+  updateHotelController,
+);
 
-hotelRouters.delete("/:id", requireAuth, deleteHotelController);
+hotelRouters.delete(
+  "/:id",
+  requireAuth,
+  authorize("owner"),
+  deleteHotelController,
+);
+
+/* ================= PUBLIC / USER ROUTES ================= */
+hotelRouters.get("/", requireAuth, getAllHotelsController);
+hotelRouters.get("/:id", requireAuth, getHotelByIdController);

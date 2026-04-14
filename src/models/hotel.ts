@@ -1,5 +1,6 @@
 import { model, Schema, Types, Document } from "mongoose";
 import { IUser } from "./user";
+import { v4 as uuidv4 } from "uuid";
 
 // ================= SUB INTERFACES =================
 interface IImage {
@@ -216,7 +217,6 @@ const hotelSchema = new Schema<IHotel>(
 );
 
 // ================= INDEXES =================
-
 hotelSchema.index({ city: 1, type: 1, pricePerNight: 1 });
 hotelSchema.index({ location: "2dsphere" });
 hotelSchema.index({
@@ -226,13 +226,15 @@ hotelSchema.index({
 });
 
 // ================= HOOKS =================
-
 hotelSchema.pre("save", function (next) {
   if (this.isModified("name")) {
-    this.slug = this.name
+    const baseSlug = this.name
       .toLowerCase()
-      .replace(/ /g, "-")
+      .trim()
+      .replace(/\s+/g, "-")
       .replace(/[^\w-]+/g, "");
+    const uniqueId = uuidv4().split("-")[0];
+    this.slug = `${baseSlug}-${uniqueId}`;
   }
 });
 

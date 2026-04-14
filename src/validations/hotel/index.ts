@@ -105,12 +105,24 @@ export const updateHotelSchema = z
     city: z.string().min(2).max(50).optional(),
     country: z.string().min(2).max(50).optional(),
 
-    location: z
-      .object({
+    location: z.preprocess(
+      (val) => {
+        if (typeof val === "string") {
+          try {
+            return JSON.parse(val);
+          } catch {
+            return val;
+          }
+        }
+        return val;
+      },
+      z.object({
         type: z.literal("Point").default("Point"),
-        coordinates: z.array(z.number()).length(2),
-      })
-      .optional(),
+        coordinates: z
+          .array(z.number())
+          .length(2, "Coordinates must be [lng, lat]"),
+      }),
+    ),
 
     description: z.string().max(1000).optional(),
     type: hotelTypeEnum.optional(),
@@ -137,7 +149,12 @@ export const updateHotelSchema = z
     discount: z.coerce.number().min(0).max(100).optional(),
     starRating: z.coerce.number().min(0).max(5).optional(),
 
-    isAvailable: z.boolean().optional(),
+    isAvailable: z.preprocess((val) => {
+      if (typeof val === "string") {
+        return val === "true";
+      }
+      return val;
+    }, z.boolean().optional().default(true)),
 
     removeImageIds: z.array(z.string()).optional(),
   })

@@ -193,6 +193,8 @@ export const deleteHotelService = async (hotelId: string) => {
 export const updateHotelService = async (data: UpdateHotelServiceInput) => {
   const { hotelId, files, removeImageIds, ...updateData } = data;
 
+  console.log(removeImageIds);
+
   if (!Types.ObjectId.isValid(hotelId)) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid hotel ID");
   }
@@ -263,4 +265,68 @@ export const updateHotelService = async (data: UpdateHotelServiceInput) => {
   } finally {
     session.endSession();
   }
+};
+
+// ================= GET ALL HOTELS SERVICES =================
+export const getAllHotelsAdminService = async (query: any) => {
+  let {
+    page = 1,
+    limit = 10,
+    city,
+    country,
+    type,
+    minPrice,
+    maxPrice,
+    starRating,
+    search,
+    sort = "-createdAt",
+  } = query;
+
+  page = Number(page) || 1;
+  limit = Number(limit) || 10;
+
+  const filter: any = {
+    isDeleted: false,
+  };
+
+  if (search) {
+    filter.$text = { $search: search };
+  }
+
+  if (city) filter.city = { $regex: city, $options: "i" };
+  if (country) filter.country = { $regex: country, $options: "i" };
+  if (type) filter.type = type;
+
+  if (starRating) {
+    filter.starRating = { $gte: Number(starRating) };
+  }
+
+  if (minPrice || maxPrice) {
+    filter.pricePerNight = {};
+    if (minPrice) filter.pricePerNight.$gte = Number(minPrice);
+    if (maxPrice) filter.pricePerNight.$lte = Number(maxPrice);
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [hotels, total] = await Promise.all([
+    Hotel.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .populate("userId", "name email")
+      .lean(),
+
+    Hotel.countDocuments(filter),
+  ]);
+
+  return {
+    hotels,
+    pagination: {
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit),
+    },
+  };
 };
