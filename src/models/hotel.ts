@@ -44,9 +44,6 @@ export interface IHotel extends Document {
   description?: string;
   type: HotelType;
 
-  adultsCount: number;
-  childrenCount?: number;
-
   facilities?: FacilityType[];
   amenities?: AmenityType[];
   tags?: TagType[];
@@ -127,18 +124,6 @@ const hotelSchema = new Schema<IHotel>(
       type: String,
       enum: HOTEL_TYPES,
       required: true,
-    },
-
-    adultsCount: {
-      type: Number,
-      required: true,
-      min: 1,
-    },
-
-    childrenCount: {
-      type: Number,
-      default: 0,
-      min: 0,
     },
 
     facilities: {

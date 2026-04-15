@@ -71,9 +71,6 @@ export const createHotelService = async (data: CreateHotelServiceInput) => {
 
       type: data.type,
 
-      adultsCount: data.adultsCount,
-      childrenCount: data.childrenCount ?? 0,
-
       amenities,
       facilities,
       tags,
@@ -167,8 +164,10 @@ export const getAllHotelsService = async (query: any) => {
   if (country) filter.country = { $regex: country, $options: "i" };
   if (type && HOTEL_TYPES.includes(type)) filter.type = type;
 
-  if (starRating) {
-    filter.starRating = { $gte: Number(starRating) };
+  if (query.stars) {
+    filter.starRating = {
+      $in: query.stars.split(",").map(Number),
+    };
   }
 
   if (minPrice || maxPrice) {
@@ -178,11 +177,11 @@ export const getAllHotelsService = async (query: any) => {
   }
 
   if (facilities) {
-    filter.facilities = { $all: facilities.split(",") };
+    filter.facilities = { $in: facilities.split(",") };
   }
 
   if (amenities) {
-    filter.amenities = { $all: amenities.split(",") };
+    filter.amenities = { $in: amenities.split(",") };
   }
 
   if (tags) {
@@ -418,8 +417,6 @@ export const updateHotelService = async (data: UpdateHotelServiceInput) => {
       "country",
       "description",
       "type",
-      "adultsCount",
-      "childrenCount",
       "pricePerNight",
       "discount",
       "starRating",

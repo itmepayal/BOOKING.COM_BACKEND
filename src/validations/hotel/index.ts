@@ -81,18 +81,6 @@ export const createHotelSchema = z
 
     type: hotelTypeEnum,
 
-    adultsCount: z.coerce
-      .number()
-      .int("Adults count must be an integer")
-      .min(1, "At least 1 adult is required"),
-
-    childrenCount: z.coerce
-      .number()
-      .int("Children count must be an integer")
-      .min(0, "Children count cannot be negative")
-      .optional()
-      .default(0),
-
     amenities: z
       .union([z.string(), z.array(amenitiesEnum)])
       .optional()
@@ -220,18 +208,6 @@ export const updateHotelSchema = z
       .optional(),
 
     type: hotelTypeEnum.optional(),
-
-    adultsCount: z.coerce
-      .number()
-      .int("Adults count must be an integer")
-      .min(1, "At least 1 adult is required")
-      .optional(),
-
-    childrenCount: z.coerce
-      .number()
-      .int("Children count must be an integer")
-      .min(0, "Children count cannot be negative")
-      .optional(),
 
     amenities: z
       .union([z.string(), z.array(z.string())])
